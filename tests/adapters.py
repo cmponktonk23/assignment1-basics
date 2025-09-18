@@ -9,6 +9,9 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+import regex
+from collections import defaultdict
+
 
 def run_linear(
     d_in: int,
@@ -589,4 +592,231 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    # put special tokens into vocabulary
+    vocab = {i: token.encode("utf-8") for i, token in enumerate(special_tokens)}
+    cur_id = len(vocab)
+    
+    # put 0-255 byte into vocabulary
+    vocab.update({cur_id + i: bytes([i]) for i in range(256)})
+    cur_id = len(vocab)
+
+    with open(input_path) as file:
+        text = file.read()
+
+        # remove all special tokens before pre-tokenize and split by special tokens
+        if special_tokens:
+            split_re = regex.compile(
+                "|".join(regex.escape(token) for token in sorted(special_tokens, key=len, reverse=True))
+            )
+            chunks = [chunk for chunk in split_re.split(text) if chunk]
+        else:
+            chunks = [text]
+
+        PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""" 
+        special_token_set = set(token.encode("utf-8") for token in special_tokens)
+        pretokens_count = defaultdict(int)
+
+        # pre-tokenize by chunk
+        for chunk in chunks:
+            for match in regex.finditer(PAT, chunk):
+                token = match.group(0).encode("utf-8")
+                if token not in special_token_set:
+                    pretokens_count[token] += 1
+
+        new_vocab, merge = bpe_merge(pretokens_count, cur_id, vocab_size - len(vocab))
+
+        vocab.update(new_vocab)
+
+    return vocab, merge
+
+
+def bpe_merge(pretokens_count, cur_id, steps) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
+    class ListNode:
+        def __init__(self, b: bytes):
+            self.b = b
+            self.left, self.right = None, None
+
+    from collections import OrderedDict
+
+    pretoken_bytelist_cnt = [([bytes([b]) for b in token], cnt) for token, cnt in pretokens_count.items()]
+    pair_count = defaultdict(int)
+    pair_record = defaultdict(OrderedDict)
+    vocab, merge = {}, []
+
+    for bytelist, cnt in pretoken_bytelist_cnt:
+        last = None
+        for j in range(len(bytelist) - 1):
+            pair = (bytelist[j], bytelist[j + 1])
+            pair_count[pair] += cnt
+
+            node1 = ListNode(bytelist[j]) if last is None else last
+            node2 = ListNode(bytelist[j + 1])
+            
+            node1.right = node2
+            node2.left = node1
+            last = node2
+            
+            pair_record[pair][(node1, node2)] = cnt
+
+    for _ in range(steps):
+        target_pair, max_cnt = None, 0
+        # get most frequent pair, when tie get lexigraphical greatest pair
+        for pair, cnt in pair_count.items():
+            if cnt > max_cnt:
+                max_cnt, target_pair = cnt, pair
+            elif cnt == max_cnt and pair > target_pair:
+                target_pair = pair
+
+        if target_pair:
+            deleted = set()
+            pair = target_pair
+            kvs = list(pair_record[pair].items())
+            
+            for node_tup, cnt in kvs:
+                node1, node2 = node_tup
+
+                if node1 in deleted:
+                    continue
+                    
+                pair_count[pair] -= cnt
+                if pair_count[pair] == 0: del pair_count[pair]
+                del pair_record[pair][(node1, node2)]
+
+                if node1.left:
+                    left = (node1.left.b, node1.b)
+                    pair_count[left] -= cnt
+                    if pair_count[left] == 0: del pair_count[left]
+                    del pair_record[left][(node1.left, node1)]
+                    
+                if node2.right:
+                    right = (node2.b, node2.right.b)
+                    pair_count[right] -= cnt
+                    if pair_count[right] == 0: del pair_count[right]
+                    del pair_record[right][(node2, node2.right)]
+
+                node1.b += node2.b
+                node1.right = node2.right
+                if node1.right: node1.right.left = node1
+                deleted.add(node2)
+
+                if node1.left:
+                    left = (node1.left.b, node1.b)
+                    pair_count[left] += cnt
+                    pair_record[left][(node1.left, node1)] = cnt
+
+                if node1.right:
+                    right = (node1.b, node1.right.b)
+                    pair_count[right] += cnt
+                    pair_record[right][(node1, node1.right)] = cnt
+
+            vocab[cur_id] = target_pair[0] + target_pair[1]
+            cur_id += 1
+            merge.append(target_pair)
+
+    return vocab, merge
+
+def bpe_merge_pq(pretokens_count, cur_id, steps) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
+    from collections import OrderedDict
+
+    class ListNode:
+        __slots__ = ("b", "left", "right")
+        def __init__(self, b: bytes):
+            self.b = b
+            self.left, self.right = None, None
+
+    pretoken_bytelist_cnt = [([bytes([b]) for b in token], cnt) for token, cnt in pretokens_count.items()]
+    pair_count = defaultdict(int)
+    pair_record = defaultdict(OrderedDict)
+    vocab, merge = {}, []
+
+    for bytelist, cnt in pretoken_bytelist_cnt:
+        last = None
+        for j in range(len(bytelist) - 1):
+            pair = (bytelist[j], bytelist[j + 1])
+            pair_count[pair] += cnt
+
+            node1 = ListNode(bytelist[j]) if last is None else last
+            node2 = ListNode(bytelist[j + 1])
+            
+            node1.right = node2
+            node2.left = node1
+            last = node2
+            
+            pair_record[pair][(node1, node2)] = cnt
+    
+    import heapq
+    from functools import total_ordering
+
+    @total_ordering
+    class PairOrder:
+        __slots__ = ("pair",)
+        def __init__(self, pair):
+            self.pair = pair
+        def __lt__(self, other):
+            return self.pair > other.pair
+        def __eq__(self, other):
+            return self.pair == other.pair
+
+    pq = [(-cnt, PairOrder(pair)) for pair, cnt in pair_count.items()]
+    heapq.heapify(pq)
+
+    def update_pair_count(pair, cnt):
+        pair_count[pair] += cnt
+        if pair_count[pair] == 0: del pair_count[pair]
+        else:heapq.heappush(pq, (-pair_count[pair], PairOrder(pair)))
+
+    for _ in range(steps):
+        # get most frequent pair, when tie get lexigraphical greatest pair
+        target_pair = None
+        while True:
+            cnt, pairOrder = heapq.heappop(pq)
+            cnt, pair = -cnt, pairOrder.pair
+            target_pair = pair
+            if cnt == pair_count[pair]:
+                break
+
+        if target_pair:
+            deleted = set()
+            pair = target_pair
+            kvs = list(pair_record[pair].items())
+            
+            for node_tup, cnt in kvs:
+                node1, node2 = node_tup
+
+                if node1 in deleted:
+                    continue
+                
+                update_pair_count(pair, -cnt)
+                
+                del pair_record[pair][(node1, node2)]
+
+                if node1.left:
+                    left = (node1.left.b, node1.b)
+                    update_pair_count(left, -cnt)
+                    del pair_record[left][(node1.left, node1)]
+                    
+                if node2.right:
+                    right = (node2.b, node2.right.b)
+                    update_pair_count(right, -cnt)
+                    del pair_record[right][(node2, node2.right)]
+
+                node1.b += node2.b
+                node1.right = node2.right
+                if node1.right: node1.right.left = node1
+                deleted.add(node2)
+
+                if node1.left:
+                    left = (node1.left.b, node1.b)
+                    update_pair_count(left, cnt)
+                    pair_record[left][(node1.left, node1)] = cnt
+
+                if node1.right:
+                    right = (node1.b, node1.right.b)
+                    update_pair_count(right, cnt)
+                    pair_record[right][(node1, node1.right)] = cnt
+
+            vocab[cur_id] = target_pair[0] + target_pair[1]
+            cur_id += 1
+            merge.append(target_pair)
+
+    return vocab, merge
