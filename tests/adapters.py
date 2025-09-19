@@ -600,20 +600,48 @@ def run_train_bpe(
     vocab.update({cur_id + i: bytes([i]) for i in range(256)})
     cur_id = len(vocab)
 
-    with open(input_path) as file:
-        text = file.read()
+    with open(input_path, 'rb') as f:
+        from cs336_basics.pretokenization_example import find_chunk_boundaries
+        from multiprocessing import Pool
+        from functools import partial
 
-        # remove all special tokens before pre-tokenize and split by special tokens
+        num_processes = 4
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+
         if special_tokens:
             split_re = regex.compile(
                 "|".join(regex.escape(token) for token in sorted(special_tokens, key=len, reverse=True))
             )
-            chunks = [chunk for chunk in split_re.split(text) if chunk]
+
+        special_token_set = set(token.encode("utf-8") for token in special_tokens)
+
+        jobs = [(start, end) for start, end in zip(boundaries[:-1], boundaries[1:])]
+        worker = partial(pre_tokenization, input_path, split_re, special_token_set)
+        with Pool(processes=num_processes) as pool:
+            partial_counts = pool.starmap(worker, jobs)
+            
+            pretokens_count = defaultdict(int)
+            for local_counts in partial_counts:
+                for token, count in local_counts.items():
+                    pretokens_count[token] += count
+
+            new_vocab, merge = bpe_merge(pretokens_count, cur_id, vocab_size - len(vocab))
+            vocab.update(new_vocab)
+
+        return vocab, merge
+
+def pre_tokenization(input_path, split_re, special_token_set, start, end):
+    with open(input_path, 'rb') as f:
+        f.seek(start)
+        chunk = f.read(end - start).decode("utf-8", errors="ignore")
+
+        # remove all special tokens before pre-tokenize and split by special tokens
+        if split_re:
+            chunks = [segment for segment in split_re.split(chunk) if segment]
         else:
-            chunks = [text]
+            chunks = [chunk]
 
         PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""" 
-        special_token_set = set(token.encode("utf-8") for token in special_tokens)
         pretokens_count = defaultdict(int)
 
         # pre-tokenize by chunk
@@ -623,11 +651,7 @@ def run_train_bpe(
                 if token not in special_token_set:
                     pretokens_count[token] += 1
 
-        new_vocab, merge = bpe_merge(pretokens_count, cur_id, vocab_size - len(vocab))
-
-        vocab.update(new_vocab)
-
-    return vocab, merge
+        return pretokens_count
 
 
 def bpe_merge(pretokens_count, cur_id, steps) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
@@ -714,6 +738,7 @@ def bpe_merge(pretokens_count, cur_id, steps) -> tuple[dict[int, bytes], tuple[b
             merge.append(target_pair)
 
     return vocab, merge
+
 
 def bpe_merge_pq(pretokens_count, cur_id, steps) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
     from collections import OrderedDict
