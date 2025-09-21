@@ -91,9 +91,9 @@ def run_swiglu(
     from cs336_basics.positionwise_feedforward import SwiGLU
     swiglu = SwiGLU(d_model, d_ff)
     swiglu.load_state_dict({
-        "W1": w1_weight.t(),
-        "W2": w2_weight.t(),
-        "W3": w3_weight.t(),
+        "W1": w1_weight,
+        "W2": w2_weight,
+        "W3": w3_weight,
     })
     return swiglu.forward(in_features)
 

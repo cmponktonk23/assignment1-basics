@@ -1,4 +1,6 @@
 import torch
+from einops import einsum
+
 
 class SwiGLU(torch.nn.Module):
 
@@ -12,9 +14,9 @@ class SwiGLU(torch.nn.Module):
         self.d_model = d_model
         self.d_ff = d_ff
 
-        self.W1 = torch.nn.Parameter(torch.empty(d_model, d_ff))
-        self.W2 = torch.nn.Parameter(torch.empty(d_ff, d_model))
-        self.W3 = torch.nn.Parameter(torch.empty(d_model, d_ff))
+        self.W1 = torch.nn.Parameter(torch.empty(d_ff, d_model))
+        self.W2 = torch.nn.Parameter(torch.empty(d_model, d_ff))
+        self.W3 = torch.nn.Parameter(torch.empty(d_ff, d_model))
 
 
     @classmethod
@@ -23,4 +25,7 @@ class SwiGLU(torch.nn.Module):
 
 
     def forward(self, x: torch.Tensor):
-        return (SwiGLU.silu(x @ self.W1) * (x @ self.W3)) @ self.W2
+        xw1 = einsum(x, self.W1, "... d_model, d_ff d_model -> ... d_ff")
+        xw3 = einsum(x, self.W3, "... d_model, d_ff d_model -> ... d_ff")
+        swiglu = SwiGLU.silu(xw1) * xw3
+        return einsum(swiglu, self.W2, "... d_ff, d_model d_ff -> ... d_model")
