@@ -116,7 +116,9 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    from cs336_basics.scaled_dot_product_attention import ScaledDotProductAttention
+    attention = ScaledDotProductAttention(Q, K, V, mask)
+    return attention.forward()
 
 
 def run_multihead_self_attention(
@@ -150,7 +152,25 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.multi_head_self_attention import MultiHeadSelfAttention
+
+    attention = MultiHeadSelfAttention(
+        d_model,
+        num_heads,
+        q_proj_weight,
+        k_proj_weight,
+        v_proj_weight,
+        o_proj_weight,
+    )
+
+    attention.load_state_dict({
+        'q_proj_weight': q_proj_weight,
+        'k_proj_weight': k_proj_weight,
+        'v_proj_weight': v_proj_weight,
+        'o_proj_weight': o_proj_weight,
+    })
+
+    return attention.forward(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -190,7 +210,27 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.multi_head_self_attention import MultiHeadSelfAttention
+
+    attention = MultiHeadSelfAttention(
+        d_model,
+        num_heads,
+        q_proj_weight,
+        k_proj_weight,
+        v_proj_weight,
+        o_proj_weight,
+        max_seq_len,
+        theta,
+    )
+
+    attention.load_state_dict({
+        'q_proj_weight': q_proj_weight,
+        'k_proj_weight': k_proj_weight,
+        'v_proj_weight': v_proj_weight,
+        'o_proj_weight': o_proj_weight,
+    })
+
+    return attention.forward(in_features, token_positions)
 
 
 def run_rope(
@@ -287,7 +327,10 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer_block import TransformerBlock
+
+    transformer_block = TransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta, weights)
+    return transformer_block.forward(in_features)
 
 
 def run_transformer_lm(
@@ -447,7 +490,8 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    from cs336_basics.softmax import SoftMax
+    return SoftMax().forward(in_features, dim)
 
 
 def run_cross_entropy(
