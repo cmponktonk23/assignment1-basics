@@ -4,8 +4,8 @@ import torch
 class Embedding(torch.nn.Module):
 
     def __init__(self, 
-                 num_embeddings: int, 
-                 embedding_dim: int, 
+                 num_embeddings: int,
+                 embedding_dim: int,
                  device: torch.device | None = None, 
                  dtype: torch.dtype | None = None):
         super().__init__()
@@ -16,7 +16,7 @@ class Embedding(torch.nn.Module):
 
         torch.nn.init.trunc_normal_(
             self.embedding_matrix, 
-            mean = 0, 
+            mean = 0,
             std = 1,
             a = -3,
             b = 3)
