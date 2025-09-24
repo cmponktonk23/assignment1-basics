@@ -152,7 +152,7 @@ def bpe_merge(
         deleted: set[ListNode] = set()
         pair = target_pair
 
-        # Copy the items to for loop because it doesn't allow removing the dict item during iterating it 
+        # Copy the items to for loop because it doesn't allow removing the dict item during iterating it
         kvs: OrderedDict[tuple[ListNode, ListNode], int] = list(pair_record[pair].items())
         for node_tup, cnt in kvs:
             node1, node2 = node_tup
@@ -185,7 +185,7 @@ def bpe_merge(
                 if pair_count[right] == 0: del pair_count[right]
                 del pair_record[right][(node2, node2.right)]
 
-            # merge node2 to node1, then remove node2
+            # Merge node2 to node1, then remove node2
             node1.b += node2.b
             node1.right = node2.right
             if node1.right: node1.right.left = node1
