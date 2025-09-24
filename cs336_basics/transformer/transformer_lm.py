@@ -1,10 +1,10 @@
 from torch import Tensor
 from jaxtyping import Int
-from cs336_basics.softmax import SoftMax
-from cs336_basics.rms_norm import RMSNorm
-from cs336_basics.embedding import Embedding
-from cs336_basics.linear_transformation import Linear
-from cs336_basics.transformer_block import TransformerBlock
+from .softmax import SoftMax
+from .rms_norm import RMSNorm
+from .embedding import Embedding
+from .linear_transformation import Linear
+from .transformer_block import TransformerBlock
 
 
 class TransformLM:

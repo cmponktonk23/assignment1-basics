@@ -3,7 +3,7 @@ import torch
 from torch import Tensor
 from jaxtyping import Float, Bool
 from einops import einsum
-from cs336_basics.softmax import SoftMax
+from .softmax import SoftMax
 
 
 class ScaledDotProductAttention(torch.nn.Module):

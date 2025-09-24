@@ -2,9 +2,9 @@ import torch
 from torch import Tensor
 from jaxtyping import Float
 from einops import rearrange
-from cs336_basics.rms_norm import RMSNorm
-from cs336_basics.positionwise_feedforward import SwiGLU
-from cs336_basics.multi_head_self_attention import MultiHeadSelfAttention
+from .rms_norm import RMSNorm
+from .positionwise_feedforward import SwiGLU
+from .multi_head_self_attention import MultiHeadSelfAttention
 
 
 class TransformerBlock:

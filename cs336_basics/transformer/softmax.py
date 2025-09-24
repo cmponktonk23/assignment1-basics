@@ -1,5 +1,6 @@
 import torch
 
+
 class SoftMax(torch.nn.Module):
 
     def __init__(self):

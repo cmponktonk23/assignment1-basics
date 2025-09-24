@@ -1,10 +1,5 @@
-from __future__ import annotations
-
 import math
 import torch
-from einops import einsum
-from torch import Tensor
-from jaxtyping import Float
 
 
 class Linear(torch.nn.Module):

@@ -2,8 +2,8 @@ import torch
 from torch import Tensor
 from einops import einsum, rearrange
 from jaxtyping import Float, Int
-from cs336_basics.rope import RoPE
-from cs336_basics.scaled_dot_product_attention import ScaledDotProductAttention
+from .rope import RoPE
+from .scaled_dot_product_attention import ScaledDotProductAttention
 
 
 class MultiHeadSelfAttention(torch.nn.Module):

@@ -2,7 +2,7 @@ import json
 import regex
 from collections import defaultdict, OrderedDict
 from typing import Iterable, Iterator
-from cs336_basics.train_bpe import ListNode
+from .train_bpe import ListNode
 
 
 class BPETokenizer:
@@ -73,6 +73,7 @@ class BPETokenizer:
                 
                 pair_record[pair][(node1, node2)] = 1
 
+            # only one byte in pre-token
             if last is None and len(bytelist) == 1:
                 node = ListNode(bytelist[0])
                 pretoken_head[node] = pos_list

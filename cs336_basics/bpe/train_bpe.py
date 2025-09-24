@@ -6,7 +6,7 @@ from tests.common import FIXTURES_PATH
 from multiprocessing import Pool
 from functools import partial
 from functools import total_ordering
-from cs336_basics.pretokenization_example import find_chunk_boundaries
+from .pretokenization_example import find_chunk_boundaries
 
 
 class ListNode:
