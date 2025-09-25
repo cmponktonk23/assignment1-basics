@@ -33,6 +33,10 @@ class RoPE(torch.nn.Module):
         x_even = x[..., 0::2]
         x_odd = x[..., 1::2]
 
+        # x_even & x_odd => (batch_size, num_heads, sequence_length, d_k // 2)
+        # cos & sin => (batch_size, sequence_length, d_k // 2)
+        # unsqueeze cos & sin => (batch_size, 1, sequence_length, d_k // 2)
+        # broadcast the new dimension cos & sin => (batch_size, num_heads, sequence_length, d_k // 2)
         rot_even = x_even * cos - x_odd * sin
         rot_odd = x_even * sin + x_odd * cos
 
