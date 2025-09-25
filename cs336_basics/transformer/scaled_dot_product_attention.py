@@ -2,7 +2,7 @@ import math
 from torch import Tensor
 from jaxtyping import Float, Bool
 from einops import einsum
-from .softmax import SoftMax
+from .softmax import softmax
 
 
 def scaled_dot_product_attention(Q: Float[Tensor, " ... queries d_k"],
@@ -19,7 +19,7 @@ def scaled_dot_product_attention(Q: Float[Tensor, " ... queries d_k"],
     masked_logits = attn_logits.masked_fill(~mask, float("-inf"))
     
     # softmax
-    attn_weights = SoftMax().forward(masked_logits, -1)
+    attn_weights = softmax(masked_logits, -1)
     
     # weight * V
     return einsum(attn_weights, V, "... queries keys, ... keys d_v -> ... queries d_v")

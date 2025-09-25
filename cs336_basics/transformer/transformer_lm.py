@@ -1,6 +1,6 @@
 from torch import Tensor
 from jaxtyping import Int
-from .softmax import SoftMax
+from .softmax import softmax
 from .rms_norm import RMSNorm
 from .embedding import Embedding
 from .linear_transformation import Linear
@@ -47,8 +47,6 @@ class TransformLM:
         self.linear = Linear(d_model, vocab_size)
         self.linear.load_state_dict({ 'W': weights['lm_head.weight'] })
 
-        self.softmax = SoftMax()
-
 
     def forward(self, in_indices: Int[Tensor, " batch_size sequence_length"]):
         # 1. token embedding
@@ -67,4 +65,4 @@ class TransformLM:
         return out_features # test case desired result has no softmax layer!!!
         
         # 5. softmax
-        # return self.softmax.forward(out_features, -1)
+        # return softmax(out_features, -1)
