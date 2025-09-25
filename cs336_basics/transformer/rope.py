@@ -9,17 +9,17 @@ class RoPE(torch.nn.Module):
     def __init__(self,
                  theta: float,
                  d_k: int,
-                 max_seq_len: int,
-                 device: torch.device | None = None):
+                 max_seq_len: int):
+        
         super().__init__()
 
+        # pre-calculate rotate angles: theta_i,k
         positions = torch.arange(max_seq_len)
-
         half_d = d_k >> 1
         inv_freq = torch.pow(theta, -((2 * torch.arange(1, half_d + 1) - 2) / d_k))
-        
         angles = positions[:, None] * inv_freq[None, :]
-        
+
+        # attach pre-calculate rotation angle to module
         self.register_buffer("sin", angles.sin(), persistent=False)
         self.register_buffer("cos", angles.cos(), persistent=False)
 

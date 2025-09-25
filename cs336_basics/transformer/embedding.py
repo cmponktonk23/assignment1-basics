@@ -4,15 +4,14 @@ import torch
 class Embedding(torch.nn.Module):
 
     def __init__(self, 
-                 num_embeddings: int,
-                 embedding_dim: int,
+                 num_embeddings: int,                 # vocab_size
+                 embedding_dim: int,                  # d_model
                  device: torch.device | None = None, 
                  dtype: torch.dtype | None = None):
+        
         super().__init__()
 
-        self.num_embeddings = num_embeddings
-
-        self.embedding_matrix = torch.nn.Parameter(torch.empty(num_embeddings, embedding_dim))
+        self.embedding_matrix = torch.nn.Parameter(torch.empty(num_embeddings, embedding_dim, device=device, dtype=dtype))
 
         torch.nn.init.trunc_normal_(
             self.embedding_matrix, 

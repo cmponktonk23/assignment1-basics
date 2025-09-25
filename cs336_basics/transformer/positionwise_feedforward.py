@@ -9,14 +9,12 @@ class SwiGLU(torch.nn.Module):
                  d_ff: int,
                  device: torch.device | None = None, 
                  dtype: torch.dtype | None = None):
+        
         super().__init__()
 
-        self.d_model = d_model
-        self.d_ff = d_ff
-
-        self.W1 = torch.nn.Parameter(torch.empty(d_ff, d_model))
-        self.W2 = torch.nn.Parameter(torch.empty(d_model, d_ff))
-        self.W3 = torch.nn.Parameter(torch.empty(d_ff, d_model))
+        self.W1 = torch.nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
+        self.W2 = torch.nn.Parameter(torch.empty(d_model, d_ff, device=device, dtype=dtype))
+        self.W3 = torch.nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
 
 
     @classmethod

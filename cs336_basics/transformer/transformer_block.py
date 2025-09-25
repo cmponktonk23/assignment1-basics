@@ -59,8 +59,14 @@ class TransformerBlock:
     def forward(self,
                 in_features: Float[Tensor, " batch sequence_length d_model"],
                 )-> Float[Tensor, " batch sequence_length d_model"]:
+        
+        # Get token position (batch_size sequence_length) from 0 ~ seq_len-1 for each batch
         token_positions = self.get_token_positions(in_features)
+
+        # attn = x + mh_attn(norm(x))
         after_attention = in_features + self.attention.forward(self.rms_norm_attention.forward(in_features), token_positions)
+        
+        # output = attn + ffn(norm(attn))
         after_ffn = self.swiglu.forward(self.rms_norm_ffn.forward(after_attention))
         return after_attention + after_ffn
 
@@ -70,4 +76,5 @@ class TransformerBlock:
                             ) -> Float[Tensor, " ... sequence_length"]:
         batch_size, seq_len = in_features.size(0), in_features.size(-2)
         token_positions = torch.arange(seq_len)
+        # Add a new dimension in dim=0, then expand dim=0 to batch_size, keep the second dim unchange
         return token_positions.unsqueeze(0).expand(batch_size, -1)

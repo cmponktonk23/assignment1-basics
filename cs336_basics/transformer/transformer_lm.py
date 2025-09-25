@@ -45,7 +45,7 @@ class TransformLM:
         self.final_rmsnorm.load_state_dict({ 'g': weights['ln_final.weight'] })
 
         self.linear = Linear(d_model, vocab_size)
-        self.linear.load_state_dict({ 'W': weights['lm_head.weight'].t() })
+        self.linear.load_state_dict({ 'W': weights['lm_head.weight'] })
 
         self.softmax = SoftMax()
 

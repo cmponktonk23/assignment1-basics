@@ -30,7 +30,7 @@ def run_linear(
     """
     from cs336_basics.transformer.linear_transformation import Linear
     linear = Linear(d_in, d_out)
-    linear.load_state_dict({"W": weights.t()})
+    linear.load_state_dict({"W": weights})
     return linear.forward(in_features)
 
 
@@ -116,9 +116,8 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    from cs336_basics.transformer.scaled_dot_product_attention import ScaledDotProductAttention
-    attention = ScaledDotProductAttention(Q, K, V, mask)
-    return attention.forward()
+    from cs336_basics.transformer.scaled_dot_product_attention import scaled_dot_product_attention
+    return scaled_dot_product_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -504,8 +503,8 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    from cs336_basics.transformer.softmax import SoftMax
-    return SoftMax().forward(in_features, dim)
+    from cs336_basics.transformer.softmax import softmax
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(
