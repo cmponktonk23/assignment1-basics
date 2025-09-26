@@ -522,7 +522,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    from cs336_basics.transformer.cross_entropy_loss import cross_entropy_loss
+    from cs336_basics.train.cross_entropy_loss import cross_entropy_loss
     return cross_entropy_loss(inputs, targets)
 
 
@@ -542,7 +542,8 @@ def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    from cs336_basics.train.adam_w import AdamW
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
