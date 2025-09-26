@@ -15,7 +15,7 @@ def scaled_dot_product_attention(Q: Float[Tensor, " ... queries d_k"],
     QK = einsum(Q, K, "... queries d_k, ... keys d_k -> ... queries keys")
     attn_logits = QK / math.sqrt(Q.shape[-1])
 
-    # casual mask
+    # causal mask
     masked_logits = attn_logits.masked_fill(~mask, float("-inf"))
     
     # softmax
