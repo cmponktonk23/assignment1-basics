@@ -6,7 +6,7 @@ from jaxtyping import Float, Int
 def cross_entropy_loss(
         inputs: Float[Tensor, " batch_size vocab_size"], 
         targets: Int[Tensor, " batch_size"]
-        )->Float[Tensor, " batch_size"]:
+        )->Float[Tensor, ""]:
     
     # Stablize input vector by subtract the maximum element
     stable: Float[Tensor, " batch_size vocab_size"] = inputs - inputs.max(dim=-1, keepdim=True).values
