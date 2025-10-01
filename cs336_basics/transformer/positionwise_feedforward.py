@@ -1,5 +1,6 @@
 import torch
 from einops import einsum
+from .linear import Linear
 
 
 class SwiGLU(torch.nn.Module):
@@ -12,9 +13,9 @@ class SwiGLU(torch.nn.Module):
         
         super().__init__()
 
-        self.W1 = torch.nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
-        self.W2 = torch.nn.Parameter(torch.empty(d_model, d_ff, device=device, dtype=dtype))
-        self.W3 = torch.nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
+        self.w1 = Linear(d_model, d_ff, device=device, dtype=dtype)
+        self.w2 = Linear(d_ff, d_model, device=device, dtype=dtype)
+        self.w3 = Linear(d_model, d_ff, device=device, dtype=dtype)
 
 
     @classmethod
@@ -23,7 +24,7 @@ class SwiGLU(torch.nn.Module):
 
 
     def forward(self, x: torch.Tensor):
-        xw1 = einsum(x, self.W1, "... d_model, d_ff d_model -> ... d_ff")
-        xw3 = einsum(x, self.W3, "... d_model, d_ff d_model -> ... d_ff")
+        xw1 = einsum(x, self.w1.weight, "... d_model, d_ff d_model -> ... d_ff")
+        xw3 = einsum(x, self.w3.weight, "... d_model, d_ff d_model -> ... d_ff")
         swiglu = SwiGLU.silu(xw1) * xw3
-        return einsum(swiglu, self.W2, "... d_ff, d_model d_ff -> ... d_model")
+        return einsum(swiglu, self.w2.weight, "... d_ff, d_model d_ff -> ... d_model")

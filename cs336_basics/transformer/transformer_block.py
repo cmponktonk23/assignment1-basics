@@ -7,7 +7,7 @@ from .positionwise_feedforward import SwiGLU
 from .multi_head_self_attention import MultiHeadSelfAttention
 
 
-class TransformerBlock:
+class TransformerBlock(torch.nn.Module):
 
     def __init__(self,
                  d_model: int,
@@ -15,45 +15,23 @@ class TransformerBlock:
                  d_ff: int,
                  max_seq_len: int,
                  theta: float,
-                 weights: dict[str, Tensor],
-                 ):
+                 device: torch.device | None = None, 
+                 dtype: torch.dtype | None = None):
+        
+        super().__init__()
     
-        q_proj_weight = weights['attn.q_proj.weight']
-        k_proj_weight = weights['attn.k_proj.weight']
-        v_proj_weight = weights['attn.v_proj.weight']
-        o_proj_weight= weights['attn.output_proj.weight']
-
-        self.attention = MultiHeadSelfAttention(
+        self.attn = MultiHeadSelfAttention(
             d_model,
             num_heads,
-            q_proj_weight,
-            k_proj_weight,
-            v_proj_weight,
-            o_proj_weight,
             max_seq_len,
-            theta
+            theta,
+            device=device,
+            dtype=dtype,
         )
-        
-        self.attention.load_state_dict({
-            'q_proj_weight': q_proj_weight,
-            'k_proj_weight': k_proj_weight,
-            'v_proj_weight': v_proj_weight,
-            'o_proj_weight': o_proj_weight,
-        })
 
-        self.swiglu = SwiGLU(d_model, d_ff)
-
-        self.swiglu.load_state_dict({
-            'W1': weights['ffn.w1.weight'],
-            'W2': weights['ffn.w2.weight'],
-            'W3': weights['ffn.w3.weight'],
-        })
-
-        self.rms_norm_attention = RMSNorm(d_model)
-        self.rms_norm_attention.load_state_dict({ 'g': weights['ln1.weight'] })
-
-        self.rms_norm_ffn = RMSNorm(d_model)
-        self.rms_norm_ffn.load_state_dict({ 'g': weights['ln2.weight'] })
+        self.ffn = SwiGLU(d_model, d_ff, device=device, dtype=dtype)
+        self.ln1 = RMSNorm(d_model, device=device, dtype=dtype)
+        self.ln2 = RMSNorm(d_model, device=device, dtype=dtype)
 
 
     def forward(self,
@@ -64,10 +42,10 @@ class TransformerBlock:
         token_positions = self.get_token_positions(in_features)
 
         # attn = x + mh_attn(norm(x))
-        after_attention = in_features + self.attention.forward(self.rms_norm_attention.forward(in_features), token_positions)
+        after_attention = in_features + self.attn.forward(self.ln1.forward(in_features), token_positions)
         
         # output = attn + ffn(norm(attn))
-        after_ffn = self.swiglu.forward(self.rms_norm_ffn.forward(after_attention))
+        after_ffn = self.ffn.forward(self.ln2.forward(after_attention))
         return after_attention + after_ffn
 
 

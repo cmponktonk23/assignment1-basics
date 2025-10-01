@@ -15,11 +15,11 @@ class Linear(torch.nn.Module):
         
         super().__init__()
 
-        self.W = torch.nn.Parameter(torch.empty(out_features, in_features, device=device, dtype=dtype))
+        self.weight = torch.nn.Parameter(torch.empty(out_features, in_features, device=device, dtype=dtype))
 
         std = math.sqrt(2 / (in_features + out_features))
         torch.nn.init.trunc_normal_(
-            self.W, 
+            self.weight, 
             mean = 0, 
             std = std,
             a = -3 * std,
@@ -27,5 +27,5 @@ class Linear(torch.nn.Module):
 
 
     def forward(self, x: Float[Tensor, " ... d_in"],) -> Float[Tensor, "... d_out"]:
-        return x @ self.W.T  # pytorch row-major
-        # return einsum(x, self.W, "... d_in, d_out d_in -> ... d_out")
+        # return x @ self.weight.T  # pytorch row-major
+        return einsum(x, self.weight, "... d_in, d_out d_in -> ... d_out")
