@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import numpy.typing as npt
 
 
@@ -9,14 +10,18 @@ def load_data(
         device: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
     
-    ds = torch.as_tensor(dataset, device=device)
-    t1 = torch.empty(batch_size, context_length, device=device)
+    if len(dataset) <= context_length:
+        raise ValueError("dataset too short for given context_length")
+    
+    max_start = len(dataset) - context_length - 1
+    starts = np.random.randint(0, max_start + 1, size=batch_size, dtype=np.int64)
+    
+    t1 = torch.empty(batch_size, context_length, dtype=torch.long)
     t2 = torch.empty_like(t1)
 
-    max_start = len(ds) - context_length
-    starts = torch.randint(0, max_start, (batch_size,), device=device)
-
     for i, start in enumerate(starts):
-        t1[i], t2[i] = ds[start:start + context_length], ds[start + 1:start + 1 + context_length]
+        wind = np.asarray(dataset[start : start + 1 + context_length], dtype=np.int64)
+        t1[i] = torch.from_numpy(wind[:-1])
+        t2[i] = torch.from_numpy(wind[1:])
     
-    return t1, t2
+    return t1.to(device, non_blocking=True), t2.to(device, non_blocking=True)
