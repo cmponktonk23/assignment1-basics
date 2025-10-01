@@ -9,7 +9,9 @@ class RoPE(torch.nn.Module):
     def __init__(self,
                  theta: float,
                  d_k: int,
-                 max_seq_len: int):
+                 max_seq_len: int,
+                 device: torch.device | None = None, 
+                 dtype: torch.dtype | None = None):
         
         super().__init__()
 
