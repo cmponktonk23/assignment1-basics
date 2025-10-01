@@ -311,11 +311,33 @@ def bpe_merge_pq(pretokens_count, cur_token_id, steps) -> tuple[dict[int, bytes]
     return vocab, merge
 
 
-# vocab, merges = train_bpe(
-#     FIXTURES_PATH / "test.txt",
-#     vocab_size=256+3,
-#     special_tokens = ["<|endoftext|>"],
-# )
+def bytes_to_unicode():
+    bs = list(range(33, 127)) + list(range(161, 173)) + list(range(174, 256))
+    cs = bs[:]
+    n = 0
+    for b in range(256):
+        if b not in bs:
+            bs.append(b)
+            cs.append(256 + n)
+            n += 1
+    cs = [chr(c) for c in cs]
+    return dict(zip(bs, cs))
 
-# print(vocab)
-# print(merges)
+
+def unicode_to_bytes():
+    btou = bytes_to_unicode()
+    return {v: k for k, v in btou.items()}
+
+
+btou = bytes_to_unicode()
+utob = unicode_to_bytes()
+
+
+def b2u(b: bytes) -> str:
+    return ''.join(btou[x] for x in b)
+
+
+def u2b(s: str) -> bytes:
+    return bytes(utob[ch] for ch in s)
+
+

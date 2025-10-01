@@ -3,6 +3,7 @@ import regex
 from collections import defaultdict, OrderedDict
 from typing import Iterable, Iterator
 from .train_bpe import ListNode
+from .train_bpe import b2u, u2b
 
 
 class BPETokenizer:
@@ -32,14 +33,16 @@ class BPETokenizer:
                    special_tokens: list[str] | None = None):
         with open(vocab_filepath, encoding="utf-8") as vf:
             raw = json.load(vf)
-            vocab = {int(idx): token.encode("utf-8") for idx, token in raw.items()}
+            vocab = {int(idx): u2b(token) for idx, token in raw.items()}
         
         with open(merges_filepath, encoding="utf-8") as mf:
-            merges = [
-                (left.encode("utf-8"), right.encode("utf-8"))
-                for line in mf
-                for left, right in line.strip().split()
-            ]
+            merges = []
+            for line in mf:
+                tokens = line.strip().split()
+                if len(tokens) != 2:
+                    continue
+                left, right = tokens
+                merges.append((u2b(left), u2b(right)))
     
         return cls(vocab, merges, special_tokens)
 
