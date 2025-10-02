@@ -54,6 +54,3 @@ class TransformerLM(torch.nn.Module):
         out_features = self.lm_head.forward(out_features)
 
         return out_features # test case desired result has no softmax layer!!!
-        
-        # 5. softmax
-        # return softmax(out_features, -1)

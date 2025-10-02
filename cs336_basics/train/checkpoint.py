@@ -1,6 +1,7 @@
 import os
 import torch
 import typing
+from typing import Optional
 
 
 def save_checkpoint(
@@ -20,15 +21,17 @@ def save_checkpoint(
 
 def load_checkpoint(
         src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes],
-        model: torch.nn.Module, 
-        optimizer: torch.optim.Optimizer):
+        model: Optional[torch.nn.Module], 
+        optimizer: Optional[torch.optim.Optimizer] = None):
 
     ckpt = torch.load(src)
     iteration = 0
 
     if ckpt:
-        model.load_state_dict(ckpt["model_state"])
-        optimizer.load_state_dict(ckpt["optimizer_state"])
+        if model:
+            model.load_state_dict(ckpt["model_state"])
+        if optimizer:
+            optimizer.load_state_dict(ckpt["optimizer_state"])
         iteration = ckpt["iteration"]
 
     return iteration

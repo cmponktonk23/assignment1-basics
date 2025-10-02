@@ -13,15 +13,11 @@ def load_data(
     if len(dataset) <= context_length:
         raise ValueError("dataset too short for given context_length")
     
-    max_start = len(dataset) - context_length - 1
-    starts = np.random.randint(0, max_start + 1, size=batch_size, dtype=np.int64)
+    data = torch.as_tensor(dataset, dtype=torch.long)
+    starts = torch.randint(0, len(data) - context_length, (batch_size,))
+    offsets = torch.arange(context_length + 1)
+    seqs = data[starts.unsqueeze(1) + offsets]
+    x = seqs[:, :-1].to(device, non_blocking=True)
+    y = seqs[:, 1:].to(device, non_blocking=True)
     
-    t1 = torch.empty(batch_size, context_length, dtype=torch.long)
-    t2 = torch.empty_like(t1)
-
-    for i, start in enumerate(starts):
-        wind = np.asarray(dataset[start : start + 1 + context_length], dtype=np.int64)
-        t1[i] = torch.from_numpy(wind[:-1])
-        t2[i] = torch.from_numpy(wind[1:])
-    
-    return t1.to(device, non_blocking=True), t2.to(device, non_blocking=True)
+    return x, y
