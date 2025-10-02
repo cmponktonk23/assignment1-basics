@@ -228,16 +228,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rope_theta", type=float, default=10000)
     parser.add_argument("--num_steps", type=int, default=40000)
     parser.add_argument("--eval_steps", type=int, default=10)
-    parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--beta1", type=float, default=0.9)
     parser.add_argument("--beta2", type=float, default=0.95)
     parser.add_argument("--eps", type=float, default=1e-8)
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--max_l2_norm", type=float, default=1.0)
+    parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--max_learning_rate", type=float, default=2e-4)
     parser.add_argument("--min_learning_rate", type=float, default=1e-5)
     parser.add_argument("--warmup_iters", type=int, default=2000)
-    parser.add_argument("--cosine_cycle_iters", type=int, default=2500)
+    parser.add_argument("--cosine_cycle_iters", type=int, default=40000)
     return parser.parse_args()
 
 
