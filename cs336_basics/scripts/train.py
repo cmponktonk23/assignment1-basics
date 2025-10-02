@@ -103,12 +103,29 @@ def train(
         cosine_cycle_iters: int):
 
     start_time = time.time()
-    
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    train_dataset, train_dtype = get_dataset(train_dataset_path, train_meta_path)
+    val_dataset, val_dtype = get_dataset(val_dataset_path, val_meta_path)
+
+    assert train_dtype == val_dtype, f"train_dtype {train_dtype} != val_dtype {val_dtype}"
+
+    model = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, rope_theta).to(device)
+    optimizer = AdamW(model.parameters(), lr, (beta1, beta2), eps, weight_decay)
+
+    ckpt_path = Path(ckpt_path)
+    ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # model parameter number
+    param_cnt = sum(p.numel() for p in model.parameters())
+
     run = wandb.init(
         project="cs336-assign1",
         name="train_transformer_lm",
         mode=wandb_mode,
         config = {
+            "param_cnt": param_cnt,
             "batch_size": batch_size,
             "context_length": context_length,
             "vocab_size": vocab_size,
@@ -131,19 +148,6 @@ def train(
             "cosine_cycle_iters": cosine_cycle_iters,
         },
     )
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    train_dataset, train_dtype = get_dataset(train_dataset_path, train_meta_path)
-    val_dataset, val_dtype = get_dataset(val_dataset_path, val_meta_path)
-
-    assert train_dtype == val_dtype, f"train_dtype {train_dtype} != val_dtype {val_dtype}"
-
-    model = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, rope_theta).to(device)
-    optimizer = AdamW(model.parameters(), lr, (beta1, beta2), eps, weight_decay)
-
-    ckpt_path = Path(ckpt_path)
-    ckpt_path.parent.mkdir(parents=True, exist_ok=True)
 
     for step in range(num_steps):
         # Sample dataset
@@ -207,14 +211,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log_interval", type=int, default=100)
     parser.add_argument("--eval_interval", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--context_length", type=int, default=1024)
+    parser.add_argument("--context_length", type=int, default=256)
     parser.add_argument("--vocab_size", type=int, default=10000)
     parser.add_argument("--d_model", type=int, default=512)
-    parser.add_argument("--num_layers", type=int, default=6)
-    parser.add_argument("--num_heads", type=int, default=8)
-    parser.add_argument("--d_ff", type=int, default=2048)
+    parser.add_argument("--num_layers", type=int, default=4)
+    parser.add_argument("--num_heads", type=int, default=16)
+    parser.add_argument("--d_ff", type=int, default=1344)
     parser.add_argument("--rope_theta", type=float, default=10000)
-    parser.add_argument("--num_steps", type=int, default=3000)
+    parser.add_argument("--num_steps", type=int, default=40000)
     parser.add_argument("--eval_steps", type=int, default=10)
     parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--beta1", type=float, default=0.9)
