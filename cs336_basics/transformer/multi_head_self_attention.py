@@ -55,7 +55,7 @@ class MultiHeadSelfAttention(torch.nn.Module):
 
         # Construct a  mask (sequence_len, sequence_len)
         seq_len = in_features.size(-2)
-        mask = torch.ones(seq_len, seq_len, dtype=torch.bool).tril()
+        mask = torch.ones(seq_len, seq_len, dtype=torch.bool, device=in_features.device).tril()
 
         # (batch_size h sequence_length d_v)
         attention = scaled_dot_product_attention(Qh, Kh, Vh, mask)

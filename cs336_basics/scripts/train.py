@@ -57,9 +57,9 @@ def validate_model(
     
             v_logits = model(vx)
             v_loss = cross_entropy_loss(v_logits.reshape(-1, v_logits.size(-1)), vy.reshape(-1))
-            val_losses.append(v_loss.item())
+            val_losses.append(v_loss)
         
-    mean_val_loss = sum(val_losses) / len(val_losses)
+    mean_val_loss = torch.stack(val_losses).mean().item()
     
     print(f"[step {step}] val_loss={mean_val_loss:.4f}", flush=True)
 
@@ -106,6 +106,10 @@ def train(
     start_time = time.time()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+    if device == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
 
     train_dataset, train_dtype = get_dataset(train_dataset_path, train_meta_path)
     val_dataset, val_dtype = get_dataset(val_dataset_path, val_meta_path)

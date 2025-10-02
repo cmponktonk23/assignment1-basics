@@ -12,7 +12,7 @@ def cross_entropy_loss(
     stable: Float[Tensor, " batch_size vocab_size"] = inputs - inputs.max(dim=-1, keepdim=True).values
     
     # Align first dimension of stable and targets, use target value to index element in predicted logits
-    numerator: Float[Tensor, " batch_size"] = stable[torch.arange(stable.size(0)), targets]
+    numerator: Float[Tensor, " batch_size"] = stable[torch.arange(stable.size(0), device=inputs.device), targets]
 
     # Element-wise sum exp(stable)
     denominator: Float[Tensor, " batch_size"] = stable.exp().sum(dim=-1, keepdim=True)
