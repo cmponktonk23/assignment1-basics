@@ -1,6 +1,8 @@
 import os
 import json
+import time
 import torch
+import wandb
 import random
 import argparse
 import numpy as np
@@ -38,7 +40,9 @@ def validate_model(
         val_dataset,
         batch_size, 
         context_length,
-        device):
+        device,
+        start_time,
+        run: wandb.Run):
     
     model.eval()
     val_losses = []
@@ -56,11 +60,19 @@ def validate_model(
             val_losses.append(v_loss.item())
         
     mean_val_loss = sum(val_losses) / len(val_losses)
+    
     print(f"[step {step}] val_loss={mean_val_loss:.4f}", flush=True)
+
+    run.log({
+        "step": step,
+        "val/loss": mean_val_loss,
+        "time/wallclock": time.time() - start_time,
+    }, step=step)
     model.train()
 
 
 def train(
+        wandb_mode: str,
         train_dataset_path: str | os.PathLike,
         train_meta_path: str | os.PathLike,
         val_dataset_path: str | os.PathLike,
@@ -89,7 +101,37 @@ def train(
         min_learning_rate: float,
         warmup_iters: int,
         cosine_cycle_iters: int):
-        
+
+    start_time = time.time()
+    
+    run = wandb.init(
+        project="cs336-assign1",
+        name="train_transformer_lm",
+        mode=wandb_mode,
+        config = {
+            "batch_size": batch_size,
+            "context_length": context_length,
+            "vocab_size": vocab_size,
+            "d_model": d_model,
+            "num_layers": num_layers,
+            "num_heads": num_heads,
+            "d_ff": d_ff,
+            "rope_theta": rope_theta,
+            "num_steps": num_steps,
+            "eval_steps": eval_steps,
+            "lr": lr,
+            "beta1": beta1,
+            "beta2": beta2,
+            "eps": eps,
+            "weight_decay": weight_decay,
+            "max_l2_norm": max_l2_norm,
+            "max_learning_rate": max_learning_rate,
+            "min_learning_rate": min_learning_rate,
+            "warmup_iters": warmup_iters,
+            "cosine_cycle_iters": cosine_cycle_iters,
+        },
+    )
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     train_dataset, train_dtype = get_dataset(train_dataset_path, train_meta_path)
@@ -137,18 +179,25 @@ def train(
 
         if step % log_interval == 0:
             print(f"[step {step}] train_loss={loss.item():.4f} lr={lr_t:.2e}", flush=True)
+            run.log({
+                "step": step,
+                "train/loss": loss.item(),
+                "train/lr": lr_t,
+                "time/wallclock": time.time() - start_time,
+            }, step=step)
 
         if step % eval_interval == 0:
-            validate_model(step, model, eval_steps, val_dataset, batch_size, context_length, device)
+            validate_model(step, model, eval_steps, val_dataset, batch_size, context_length, device, start_time, run)
 
     save_checkpoint(model, optimizer, step, ckpt_path)
-    validate_model(step, model, eval_steps, val_dataset, batch_size, context_length, device)
-
+    validate_model(step, model, eval_steps, val_dataset, batch_size, context_length, device, start_time, run)
+    run.finish()
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=88)
+    parser.add_argument("--wandb_mode", type=str, default="offline")
     parser.add_argument("--train_dataset_path", type=Path, required=True)
     parser.add_argument("--train_meta_path", type=Path, required=True)
     parser.add_argument("--val_dataset_path", type=Path, required=True)
