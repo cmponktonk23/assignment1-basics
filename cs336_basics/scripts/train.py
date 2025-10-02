@@ -56,7 +56,7 @@ def validate_model(
             
     
             v_logits = model(vx)
-            v_loss = cross_entropy_loss(v_logits.view(-1, v_logits.size(-1)), vy.view(-1))
+            v_loss = cross_entropy_loss(v_logits.reshape(-1, v_logits.size(-1)), vy.reshape(-1))
             val_losses.append(v_loss.item())
         
     mean_val_loss = sum(val_losses) / len(val_losses)
@@ -72,6 +72,7 @@ def validate_model(
 
 
 def train(
+        seed: int,
         wandb_mode: str,
         train_dataset_path: str | os.PathLike,
         train_meta_path: str | os.PathLike,
@@ -163,20 +164,23 @@ def train(
         # Run model
         logits = model(x)
 
+        if torch.isnan(logits).any():
+            raise RuntimeError("NaN detected in logits")
+
         # Calculate loss and gradient
-        loss = cross_entropy_loss(logits.view(-1, logits.size(-1)), y.view(-1))
+        loss = cross_entropy_loss(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
         loss.backward()
 
         # Gradient clipping
         gradient_clipping(model.parameters(), max_l2_norm)
 
-        # Optimizer
-        optimizer.step()
-
         # Learning rate scheduling
         lr_t = lr_cosine_annealing_schedule(step, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
         for group in optimizer.param_groups:
             group["lr"] = lr_t
+
+        # Optimizer
+        optimizer.step()
 
         if step % ckpt_interval == 0:
             save_checkpoint(model, optimizer, step, ckpt_path)
