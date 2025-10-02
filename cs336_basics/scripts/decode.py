@@ -15,7 +15,7 @@ def decode(
         top_p: float,
         vocab_path: str | os.PathLike,
         merges_path: str | os.PathLike,
-        ckpt_path: str | os.Pathlike,
+        ckpt_path: str | os.PathLike,
         context_length: int,
         vocab_size: int,
         d_model: int,
@@ -84,19 +84,19 @@ def decode(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--prompt", type=str, default="")
+    parser.add_argument("--prompt", type=str, required=True)
     parser.add_argument("--max_token_num", type=int, required=True)
-    parser.add_argument("--temperature", type=float, required=True)
-    parser.add_argument("--top_p", type=float, required=True)
+    parser.add_argument("--temperature", type=float, default=1)
+    parser.add_argument("--top_p", type=float, default=0.9)
     parser.add_argument("--vocab_path", type=Path, required=True)
     parser.add_argument("--merges_path", type=Path, required=True)
     parser.add_argument("--ckpt_path", type=Path, required=True)
-    parser.add_argument("--context_length", type=int, default=1024)
+    parser.add_argument("--context_length", type=int, default=256)
     parser.add_argument("--vocab_size", type=int, default=10000)
     parser.add_argument("--d_model", type=int, default=512)
-    parser.add_argument("--num_layers", type=int, default=6)
-    parser.add_argument("--num_heads", type=int, default=8)
-    parser.add_argument("--d_ff", type=int, default=2048)
+    parser.add_argument("--num_layers", type=int, default=4)
+    parser.add_argument("--num_heads", type=int, default=16)
+    parser.add_argument("--d_ff", type=int, default=1344)
     parser.add_argument("--rope_theta", type=float, default=10000)
     return parser.parse_args()
 
