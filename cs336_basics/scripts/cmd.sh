@@ -4,6 +4,7 @@ uv run cs336_basics/scripts/train_bpe.py \
 
 
 uv run cs336_basics/scripts/tokenization.py \
+    --num_processes 8 \
     --input_path "data/TinyStoriesV2-GPT4-train.txt" \
     --out_path "data/TinyStoriesV2-GPT4-train" \
     --vocab_path "data/vocab.json" \
@@ -11,6 +12,7 @@ uv run cs336_basics/scripts/tokenization.py \
 
 
 uv run cs336_basics/scripts/tokenization.py \
+    --num_processes 8 \
     --input_path "data/TinyStoriesV2-GPT4-valid.txt" \
     --out_path "data/TinyStoriesV2-GPT4-valid" \
     --vocab_path "data/vocab.json" \

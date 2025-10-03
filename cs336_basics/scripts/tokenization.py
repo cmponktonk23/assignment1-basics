@@ -4,10 +4,49 @@ import argparse
 from array import array
 from pathlib import Path
 from tqdm import tqdm
+from multiprocessing import Pool, RLock
+from functools import partial
 from cs336_basics.bpe.bpe_tokenizer import BPETokenizer
+from cs336_basics.bpe.pretokenization_example import find_chunk_boundaries
+
+
+tqdm.set_lock(RLock())
+
+
+class LimitedReader:
+    def __init__(self, file, start, end):
+        self.file = file
+        self.current = start
+        self.end = end
+
+
+    def __iter__(self):
+        return self
+    
+
+    def __next__(self):
+        if self.current >= self.end:
+            raise StopIteration
+        
+        line_bytes = self.file.readline()
+        if not line_bytes:
+            raise StopIteration
+        
+        line_len = len(line_bytes)
+
+        if self.current + line_len > self.end:
+            remaining = self.end - self.current
+            line = line_bytes[:remaining].decode("utf-8", errors="ignore")
+            self.current = self.end
+        else:
+            line = line_bytes.decode("utf-8", errors="ignore")
+            self.current += line_len
+
+        return line
 
 
 def tokenize(
+        num_processes: int,
         input_path: str | os.PathLike,
         out_path: str | os.PathLike,
         vocab_path: str | os.PathLike, 
@@ -20,50 +59,88 @@ def tokenize(
         special_tokens=special_tokens,
     )
 
-    out_path = Path(out_path)
+    with open(input_path, 'rb') as f:
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+        jobs = [(worker_id, start, end) for worker_id, (start, end) in enumerate(zip(boundaries[:-1], boundaries[1:]))]
+        worker = partial(tokenization, tokenizer, input_path, out_path)
+        
+        with Pool(processes=num_processes) as pool:
+            token_cnts: list[int] = pool.starmap(worker, jobs)
+
+        print("Start to merge tmp files...")
+
+        # Merge tmp files
+        with open(out_path, 'wb') as fout:
+            for worker_id, _, _ in jobs:
+                tmp_file = Path(f"{out_path}.tmp.{worker_id}")
+                with open(tmp_file, 'rb') as fin:
+                    fout.write(fin.read())
+                tmp_file.unlink()
+
+        # Write metadata
+        meta_path = Path(out_path).with_suffix('.meta.json')
+        with open(meta_path, 'w') as f:
+            json.dump({
+                "total_tokens": sum(token_cnts),
+                "dtype": "uint16",
+            }, f, ensure_ascii=False, indent=2)
+
+
+def tokenization(
+        tokenizer: BPETokenizer,
+        input_path: str | os.PathLike,
+        out_path: str | os.PathLike,
+        worker_id: int,
+        start: int,
+        end: int):
+
+    out_path = Path(f"{out_path}.tmp.{worker_id}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    train_meta_path = out_path.with_suffix(out_path.suffix + ".meta.json")
-    train_buf = array("H")
-    train_cnt = 0
 
-    # Get file size for progress bar
-    file_size = os.path.getsize(input_path)
+    with open(input_path, 'rb') as fin, \
+         open(out_path, "wb") as ftrain:
+        
+        # Read the chunk assigned to current worker
+        fin.seek(start)
 
-    with open(input_path, 'r', encoding="utf-8") as fin, \
-         open(out_path, "wb") as ftrain, \
-         open(train_meta_path, "w") as ftrain_meta, \
-         tqdm(total=file_size, unit='B', unit_scale=True, desc="Tokenizing") as pbar:
-
-        last_pos = 0
-
-        for token_id in tokenizer.encode_iterable(fin):
-            train_buf.append(token_id)
-            if len(train_buf) >= 1_000_000:
-                train_cnt += len(train_buf)
-                train_buf.tofile(ftrain)
-                train_buf = array("H")
-
-                # Update progress bar using actual byte position
-                current_pos = fin.buffer.tell()
-                pbar.update(current_pos - last_pos)
-                last_pos = current_pos
-
-        if train_buf:
-            train_cnt += len(train_buf)
+        def handle_chunk():
+            chunk = fin.read(end - start).decode("utf-8", errors="ignore")
+            token_ids = tokenizer.encode(chunk)
+            token_cnt = len(token_ids)
+            train_buf = array("H", token_ids)
             train_buf.tofile(ftrain)
+            return token_cnt
 
-        # Final progress update
-        current_pos = fin.buffer.tell()
-        pbar.update(current_pos - last_pos)
+        def handle_stream():
+            train_buf = array("H")
+            token_cnt = 0
+            processed = 0
+            limited_reader = LimitedReader(fin, start, end)
+            with tqdm(total=end-start, unit="B", unit_scale=True, desc=f"Worker {worker_id}", position=worker_id, leave=False, dynamic_ncols=True) as pbar:
+                for token_id in tokenizer.encode_iterable(limited_reader):
+                    train_buf.append(token_id)
+                    if len(train_buf) >= 1_000_000:
+                        token_cnt += len(train_buf)
+                        train_buf.tofile(ftrain)
+                        train_buf = array("H")
+                        
+                    new_processed = limited_reader.current - start
+                    if new_processed > processed:
+                        pbar.update(new_processed - processed)
+                        processed = new_processed
+
+                if train_buf:
+                    token_cnt += len(train_buf)
+                    train_buf.tofile(ftrain)
+
+                return token_cnt
     
-        json.dump({
-            "total_tokens": train_cnt,
-            "dtype": "uint16",
-        }, ftrain_meta, ensure_ascii=False, indent=2)
+        return handle_stream()
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--num_processes", type=int, default=4)
     parser.add_argument("--input_path", type=Path, required=True)
     parser.add_argument("--out_path", type=Path, required=True)
     parser.add_argument("--vocab_path", type=Path, required=True)
