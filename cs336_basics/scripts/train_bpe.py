@@ -14,7 +14,8 @@ def train(
     vocab, merges = train_bpe(
         input_path = input_path,
         vocab_size = vocab_size, 
-        special_tokens = special_tokens)
+        special_tokens = special_tokens,
+        num_processes=8)
 
     vocab_path = out_dir / "vocab.json"
     merges_path = out_dir / "merges.txt"

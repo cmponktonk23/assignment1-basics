@@ -30,6 +30,9 @@ def train_bpe(
     """
     Train bpe tokenizer with merge optimization
     """
+
+    num_processes = kwargs.get('num_processes', NUM_PROCESSES)
+
     # Put special tokens into vocabulary
     vocab = {i: token.encode("utf-8") for i, token in enumerate(special_tokens)}
     cur_token_id = len(vocab)
@@ -42,12 +45,13 @@ def train_bpe(
 
     # Read file content as byte stream
     with open(input_path, 'rb') as f:
-        # Split the text into at most NUM_PROCESSES chunks with <|endoftext|> be the boundaries
-        boundaries = find_chunk_boundaries(f, NUM_PROCESSES, b"<|endoftext|>")
+        # Split the text into at most num_processes chunks with <|endoftext|> be the boundaries
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
         # Combine all special tokens separated by | to construct regex expression
         # Note that special tokens should be sorted by length in decreasing order
         # Because long special tokens maybe includes short ones which leads to the long ones never get matched
+        split_re = None
         if special_tokens:
             split_re = regex.compile(
                 "|".join(regex.escape(token) for token in sorted(special_tokens, key=len, reverse=True)))
@@ -58,7 +62,7 @@ def train_bpe(
         # Workers run pre_tokenization
         worker = partial(pre_tokenization, input_path, split_re)
         
-        with Pool(processes=NUM_PROCESSES) as pool:
+        with Pool(processes=num_processes) as pool:
             # Use multi-process workers to run pre_tokenization jobs and store results in partial_counts
             partial_counts: list[defaultdict[bytes, int]] = pool.starmap(worker, jobs)
             pretokens_count = defaultdict(int)
