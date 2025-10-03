@@ -212,7 +212,7 @@ class BPETokenizer:
         # Pre-tokenize by chunk
         total = 0
         special_token_set = set(self.special_tokens) if self.special_tokens else set()
-        special_token_pos: tuple[int, int] = []  # [(pre-token position in text, token_id)]
+        special_token_pos: list[tuple[int, int]] = []  # [(pre-token position in text, token_id)]
         for chunk in chunks:
             # Each special token is a standalone chunk
             if chunk in special_token_set:
