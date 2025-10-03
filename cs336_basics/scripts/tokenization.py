@@ -45,6 +45,39 @@ class LimitedReader:
         return line
 
 
+def tokenize_test(
+        num_processes: int,
+        input_path: str | os.PathLike,
+        out_path: str | os.PathLike,
+        vocab_path: str | os.PathLike, 
+        merges_path: str | os.PathLike,
+        special_tokens: list[str] = ["<|endoftext|>"]):
+    
+    tokenizer = BPETokenizer.from_files(
+        vocab_filepath=vocab_path,
+        merges_filepath=merges_path,
+        special_tokens=special_tokens,
+    )
+
+    with open(input_path, 'r', encoding="utf-8") as fin, \
+         open(f"{out_path}.test", 'wb') as fout:
+    
+        train_buf = array("H")
+        token_cnt = 0
+        for token_id in tokenizer.encode_iterable(fin):
+            train_buf.append(token_id)
+            token_cnt += 1
+
+        train_buf.tofile(fout)
+        
+        meta_path = Path(out_path).with_suffix('.test.meta.json')
+        with open(meta_path, 'w') as f:
+            json.dump({
+                "total_tokens": token_cnt,
+                "dtype": "uint16",
+            }, f, ensure_ascii=False, indent=2)
+
+
 def tokenize(
         num_processes: int,
         input_path: str | os.PathLike,
@@ -150,7 +183,8 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    tokenize(**vars(args))
+    # tokenize(**vars(args))
+    tokenize_test(**vars(args))
 
 
 if __name__ == "__main__":
