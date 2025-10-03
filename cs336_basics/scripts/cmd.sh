@@ -1,23 +1,29 @@
 uv run cs336_basics/scripts/train_bpe.py \
-    --input_path "cs336_basics/scripts/data/tinystories_sample_5M.txt" \
-    --out_dir "cs336_basics/scripts/data/" \
+    --input_path "data/TinyStoriesV2-GPT4-train.txt" \
+    --out_dir "data/"
 
 
 uv run cs336_basics/scripts/tokenization.py \
-    --input_path "cs336_basics/scripts/data/tinystories_sample_5M.txt" \
-    --train_out_path "cs336_basics/scripts/data/tinystories_train" \
-    --val_out_path "cs336_basics/scripts/data/tinystories_val" \
-    --vocab_path "cs336_basics/scripts/data/vocab.json" \
-    --merges_path "cs336_basics/scripts/data/merges.txt"
+    --input_path "data/TinyStoriesV2-GPT4-train.txt" \
+    --out_path "data/TinyStoriesV2-GPT4-train" \
+    --vocab_path "data/vocab.json" \
+    --merges_path "data/merges.txt"
+
+
+uv run cs336_basics/scripts/tokenization.py \
+    --input_path "data/TinyStoriesV2-GPT4-valid.txt" \
+    --out_path "data/TinyStoriesV2-GPT4-valid" \
+    --vocab_path "data/vocab.json" \
+    --merges_path "data/merges.txt"
 
 
 uv run cs336_basics/scripts/train.py \
     --wandb_mode "online" \
-    --train_dataset_path "cs336_basics/scripts/data/tinystories_train" \
-    --train_meta_path "cs336_basics/scripts/data/tinystories_train.meta.json" \
-    --val_dataset_path "cs336_basics/scripts/data/tinystories_val" \
-    --val_meta_path "cs336_basics/scripts/data/tinystories_val.meta.json" \
-    --ckpt_path "cs336_basics/scripts/data/ckpt" \
+    --train_dataset_path "data/TinyStoriesV2-GPT4-train" \
+    --train_meta_path "data/TinyStoriesV2-GPT4-train.meta.json" \
+    --val_dataset_path "data/TinyStoriesV2-GPT4-valid" \
+    --val_meta_path "data/TinyStoriesV2-GPT4-valid.meta.json" \
+    --ckpt_path "data/ckpt"
 
 
 uv run cs336_basics/scripts/decode.py \
