@@ -122,8 +122,26 @@ def train(
     ckpt_path = Path(ckpt_path)
     ckpt_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Resume training if checkpoint exists.
+    start_step = 0
+    resume_step = -1
+    if ckpt_path.exists():
+        resume_step = load_checkpoint(ckpt_path, model, optimizer)
+        start_step = resume_step + 1
+        if start_step >= num_steps:
+            print(f"Checkpoint already reached step {resume_step}. Nothing to do.")
+        else:
+            print(f"Resuming from checkpoint at step {start_step}")
+
     # model parameter number
     param_cnt = sum(p.numel() for p in model.parameters())
+
+    wandb_id_path = ckpt_path.with_suffix(ckpt_path.suffix + ".wandb_id")
+    wandb_resume_kwargs: dict[str, str] = {}
+    if start_step > 0 and wandb_id_path.exists():
+        wandb_run_id = wandb_id_path.read_text(encoding="utf-8").strip()
+        if wandb_run_id:
+            wandb_resume_kwargs = {"id": wandb_run_id, "resume": "allow"}
 
     run = wandb.init(
         project="cs336-assign1",
@@ -152,9 +170,19 @@ def train(
             "warmup_iters": warmup_iters,
             "cosine_cycle_iters": cosine_cycle_iters,
         },
+        **wandb_resume_kwargs,
     )
 
-    for step in range(num_steps):
+    # Persist run id so future resumes can attach to the same W&B run.
+    wandb_id_path.write_text(run.id, encoding="utf-8")
+
+    if start_step >= num_steps:
+        if resume_step >= 0:
+            validate_model(resume_step, model, eval_steps, val_dataset, batch_size, context_length, device, start_time, run)
+        run.finish()
+        return
+
+    for step in range(start_step, num_steps):
         # Sample dataset
         x, y = load_data(
             dataset=train_dataset,
