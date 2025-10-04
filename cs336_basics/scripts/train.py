@@ -234,16 +234,16 @@ def train(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=88)
+    parser.add_argument("--seed", type=int, default=66)
     parser.add_argument("--wandb_mode", type=str, default="offline")
     parser.add_argument("--train_dataset_path", type=Path, required=True)
     parser.add_argument("--train_meta_path", type=Path, required=True)
     parser.add_argument("--val_dataset_path", type=Path, required=True)
     parser.add_argument("--val_meta_path", type=Path, required=True)
     parser.add_argument("--ckpt_path", type=Path, required=True)
-    parser.add_argument("--ckpt_interval", type=int, default=500)
+    parser.add_argument("--ckpt_interval", type=int, default=5000)
     parser.add_argument("--log_interval", type=int, default=100)
-    parser.add_argument("--eval_interval", type=int, default=1000)
+    parser.add_argument("--eval_interval", type=int, default=2000)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--context_length", type=int, default=256)
     parser.add_argument("--vocab_size", type=int, default=10000)
@@ -261,7 +261,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_l2_norm", type=float, default=1.0)
     parser.add_argument("--max_learning_rate", type=float, default=2e-4)
     parser.add_argument("--min_learning_rate", type=float, default=1e-5)
-    parser.add_argument("--warmup_iters", type=int, default=2000)
+    parser.add_argument("--warmup_iters", type=int, default=4000)
     parser.add_argument("--cosine_cycle_iters", type=int, default=40000)
     return parser.parse_args()
 
