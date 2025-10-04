@@ -92,7 +92,6 @@ def train(
         rope_theta: float,
         num_steps: int,
         eval_steps: int,
-        lr: float,
         beta1: float,
         beta2: float,
         eps: float,
@@ -117,7 +116,7 @@ def train(
     assert train_dtype == val_dtype, f"train_dtype {train_dtype} != val_dtype {val_dtype}"
 
     model = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, rope_theta).to(device)
-    optimizer = AdamW(model.parameters(), lr, (beta1, beta2), eps, weight_decay)
+    optimizer = AdamW(model.parameters(), max_learning_rate, (beta1, beta2), eps, weight_decay)
 
     ckpt_path = Path(ckpt_path)
     ckpt_path.parent.mkdir(parents=True, exist_ok=True)
@@ -159,7 +158,6 @@ def train(
             "rope_theta": rope_theta,
             "num_steps": num_steps,
             "eval_steps": eval_steps,
-            "lr": lr,
             "beta1": beta1,
             "beta2": beta2,
             "eps": eps,
@@ -261,7 +259,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eps", type=float, default=1e-8)
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--max_l2_norm", type=float, default=1.0)
-    parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--max_learning_rate", type=float, default=2e-4)
     parser.add_argument("--min_learning_rate", type=float, default=1e-5)
     parser.add_argument("--warmup_iters", type=int, default=2000)
