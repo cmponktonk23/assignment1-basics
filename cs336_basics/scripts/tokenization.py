@@ -183,8 +183,8 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    # tokenize(**vars(args))
-    tokenize_test(**vars(args))
+    tokenize(**vars(args))
+    # tokenize_test(**vars(args))
 
 
 if __name__ == "__main__":
