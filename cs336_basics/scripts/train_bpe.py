@@ -6,16 +6,21 @@ from cs336_basics.bpe.train_bpe import train_bpe, b2u, u2b
 
 
 def train(
+        num_processes: int,
+        pq: bool,
+        show_progress: bool,
         input_path: str | os.PathLike,
         out_dir: str | os.PathLike,
         vocab_size: int,
         special_tokens: list[str] = ["<|endoftext|>",]):
     
     vocab, merges = train_bpe(
+        num_processes = num_processes,
         input_path = input_path,
         vocab_size = vocab_size, 
         special_tokens = special_tokens,
-        num_processes=8)
+        pq = pq,
+        show_progress = show_progress)
 
     vocab_path = out_dir / "vocab.json"
     merges_path = out_dir / "merges.txt"
@@ -33,6 +38,9 @@ def train(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--num_processes", type=int, default=4)
+    parser.add_argument("--pq", action="store_true")
+    parser.add_argument("--show_progress", action="store_true")
     parser.add_argument("--input_path", type=Path, required=True)
     parser.add_argument("--out_dir", type=Path, required=True)
     parser.add_argument("--vocab_size", type=int, default=10000)
@@ -41,7 +49,7 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    train(args.input_path, args.out_dir, args.vocab_size)
+    train(**vars(args))
 
 
 if __name__ == "__main__":

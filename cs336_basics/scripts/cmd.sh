@@ -1,14 +1,17 @@
 uv run cs336_basics/scripts/train_bpe.py \
-    --input_path "data/TinyStoriesV2-GPT4-train.txt" \
-    --out_dir "data/"
+    --num_processes 8 \
+    --show_progress \
+    --input_path "data/OpenWebText/owt_train.txt" \
+    --out_dir "data/OpenWebText/" \
+    --vocab_size 32000
 
 
 uv run cs336_basics/scripts/tokenization.py \
     --num_processes 8 \
-    --input_path "data/TinyStoriesV2-GPT4-train.txt" \
-    --out_path "data/TinyStoriesV2-GPT4-train" \
-    --vocab_path "data/vocab.json" \
-    --merges_path "data/merges.txt"
+    --input_path "data/OpenWebText/owt_train.txt" \
+    --out_path "data/OpenWebText/owt_train" \
+    --vocab_path "data/OpenWebText/vocab.json" \
+    --merges_path "data/OpenWebText/merges.txt"
 
 
 uv run cs336_basics/scripts/tokenization.py \
@@ -29,9 +32,9 @@ uv run cs336_basics/scripts/train.py \
 
 
 uv run cs336_basics/scripts/decode.py \
-    --prompt "Hi, my name is" \
-    --max_token_num 20 \
-    --vocab_path "cs336_basics/scripts/data/vocab.json" \
-    --merges_path "cs336_basics/scripts/data/merges.txt" \
-    --ckpt_path "cs336_basics/scripts/data/ckpt" \
+    --prompt "Once upon a time" \
+    --max_token_num 5000 \
+    --vocab_path "data/vocab.json" \
+    --merges_path "data/merges.txt" \
+    --ckpt_path "data/ckpt"
 

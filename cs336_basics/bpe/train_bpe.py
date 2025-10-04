@@ -7,6 +7,7 @@ from tests.common import FIXTURES_PATH
 from multiprocessing import Pool
 from functools import partial
 from functools import total_ordering
+from tqdm.auto import trange
 from .pretokenization_example import find_chunk_boundaries
 
 
@@ -32,6 +33,8 @@ def train_bpe(
     """
 
     num_processes = kwargs.get('num_processes', NUM_PROCESSES)
+    print(num_processes, flush=True)
+    show_progress = kwargs.get("show_progress", False)
 
     # Put special tokens into vocabulary
     vocab = {i: token.encode("utf-8") for i, token in enumerate(special_tokens)}
@@ -46,7 +49,7 @@ def train_bpe(
     # Read file content as byte stream
     with open(input_path, 'rb') as f:
         # Split the text into at most num_processes chunks with <|endoftext|> be the boundaries
-        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+        boundaries = find_chunk_boundaries(f, num_processes * 8, b"<|endoftext|>")
 
         # Combine all special tokens separated by | to construct regex expression
         # Note that special tokens should be sorted by length in decreasing order
@@ -57,11 +60,12 @@ def train_bpe(
                 "|".join(regex.escape(token) for token in sorted(special_tokens, key=len, reverse=True)))
 
         # Boundary start:end as the dynamic parameter of workers
-        jobs = [(start, end) for start, end in zip(boundaries[:-1], boundaries[1:])]
+        jobs = [(job_id, start, end) for job_id, (start, end) in enumerate(zip(boundaries[:-1], boundaries[1:]))]
         # Use closure to capture the common parameters of workers
         # Workers run pre_tokenization
         worker = partial(pre_tokenization, input_path, split_re)
         
+        print("Start to pre-tokenization...", flush=True)
         with Pool(processes=num_processes) as pool:
             # Use multi-process workers to run pre_tokenization jobs and store results in partial_counts
             partial_counts: list[defaultdict[bytes, int]] = pool.starmap(worker, jobs)
@@ -71,7 +75,11 @@ def train_bpe(
                 for token, count in local_counts.items():
                     pretokens_count[token] += count
 
-            new_vocab, merge = bpe_merge(pretokens_count, cur_token_id, vocab_size - len(vocab))
+            print("Start to bpe merge...", flush=True)
+            if kwargs.get("pq", False):
+                new_vocab, merge = bpe_merge_pq(pretokens_count, cur_token_id, vocab_size - len(vocab), show_progress)
+            else:
+                new_vocab, merge = bpe_merge(pretokens_count, cur_token_id, vocab_size - len(vocab), show_progress)
             vocab.update(new_vocab)
 
         return vocab, merge
@@ -79,11 +87,14 @@ def train_bpe(
 
 def pre_tokenization(
         input_path: str | os.PathLike, 
-        split_re: Pattern[str], 
+        split_re: Pattern[str],
+        job_id: int,
         start: int, 
         end: int) -> defaultdict[bytes, int]:
     
     with open(input_path, 'rb') as f:
+        print(f"job {job_id} start (pid={os.getpid()}) size: {(end - start) / (1024 * 1024)}MB", flush=True)
+
         # Read the chunk assigned to current worker
         f.seek(start)
         chunk = f.read(end - start).decode("utf-8", errors="ignore")
@@ -105,13 +116,15 @@ def pre_tokenization(
                 token = match.group(0).encode("utf-8")
                 pretokens_count[token] += 1
 
+        print(f"job {job_id} done (pid={os.getpid()})", flush=True)
         return pretokens_count
 
 
 def bpe_merge(
         pretokens_count: defaultdict[bytes, int], 
         cur_token_id: int, 
-        steps: int) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
+        steps: int,
+        show_progress: bool = False) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
     
     # Turn pre-tokens to one byte list 
     pretoken_bytelist_cnt: list[tuple[list[bytes], int]] = [([bytes([b]) for b in token], cnt) for token, cnt in pretokens_count.items()]
@@ -139,7 +152,8 @@ def bpe_merge(
             pair_record[pair][(node1, node2)] = cnt
 
     # Merge steps times, but be careful the pre-tokens may have no pairs to merge anymore before reach the limit
-    for _ in range(steps):
+    loop = trange(steps, desc="BPE merges", leave=False) if show_progress else range(steps)
+    for _ in loop:
         target_pair, max_cnt = None, 0
         # Get the most frequent pair, when tie choose the lexigraphical greatest pair
         # Scan the list to get the result in O(N)
@@ -212,7 +226,11 @@ def bpe_merge(
     return vocab, merge
 
 
-def bpe_merge_pq(pretokens_count, cur_token_id, steps) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
+def bpe_merge_pq(
+        pretokens_count: defaultdict[bytes, int], 
+        cur_token_id: int, 
+        steps: int,
+        show_progress: bool = False) -> tuple[dict[int, bytes], tuple[bytes, bytes]]:
     """
     Instead of scan the pair_record to get the most frequent pair in O(N), use a lazy delete priority queue to get it in O(logN)
     """
@@ -254,8 +272,9 @@ def bpe_merge_pq(pretokens_count, cur_token_id, steps) -> tuple[dict[int, bytes]
         pair_count[pair] += cnt
         if pair_count[pair] == 0: del pair_count[pair]
         else:heapq.heappush(pq, (-pair_count[pair], PairOrder(pair)))
-
-    for _ in range(steps):
+    
+    loop = trange(steps, desc="BPE merges", leave=False) if show_progress else range(steps)
+    for _ in loop:
         target_pair = None
         # Lazy delete priority queue, delete the poped pair unless its count is up-to-date
         # Another way is to use a version number for each pair
