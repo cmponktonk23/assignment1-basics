@@ -49,7 +49,7 @@ def train_bpe(
     # Read file content as byte stream
     with open(input_path, 'rb') as f:
         # Split the text into at most num_processes chunks with <|endoftext|> be the boundaries
-        boundaries = find_chunk_boundaries(f, num_processes * 8, b"<|endoftext|>")
+        boundaries = find_chunk_boundaries(f, num_processes * 2, b"<|endoftext|>")
 
         # Combine all special tokens separated by | to construct regex expression
         # Note that special tokens should be sorted by length in decreasing order
