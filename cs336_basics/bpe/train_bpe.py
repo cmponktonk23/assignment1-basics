@@ -35,6 +35,7 @@ def train_bpe(
     num_processes = kwargs.get('num_processes', NUM_PROCESSES)
     print(num_processes, flush=True)
     show_progress = kwargs.get("show_progress", False)
+    mem_efficient = kwargs.get("mem_efficient", 1)
 
     # Put special tokens into vocabulary
     vocab = {i: token.encode("utf-8") for i, token in enumerate(special_tokens)}
@@ -49,7 +50,9 @@ def train_bpe(
     # Read file content as byte stream
     with open(input_path, 'rb') as f:
         # Split the text into at most num_processes chunks with <|endoftext|> be the boundaries
-        boundaries = find_chunk_boundaries(f, num_processes * 2, b"<|endoftext|>")
+        # Memory Optimization: Let num_processes * mem_efficient to get more chunks then processes
+        # by this way, processes only load half of the file into memory
+        boundaries = find_chunk_boundaries(f, num_processes * mem_efficient, b"<|endoftext|>")
 
         # Combine all special tokens separated by | to construct regex expression
         # Note that special tokens should be sorted by length in decreasing order
