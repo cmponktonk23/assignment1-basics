@@ -51,11 +51,11 @@ def decode(
             probs = softmax(logits / temperature, -1)
 
             # top-p sampling
-            sorted_probs, sorted_indices = torch.sort(probs, dim=-1, descending=True)
-            cum_probs = torch.cumsum(sorted_probs, dim=-1)
+            sorted_probs, sorted_indices = torch.sort(probs, dim=-1, descending=True)  # Sort the prob distribution in decreasing order
+            cum_probs = torch.cumsum(sorted_probs, dim=-1)                             # Accumulate sum
 
-            cutoff = torch.searchsorted(cum_probs, top_p)
-            mask = torch.arange(probs.size(-1), device=device) <= cutoff
+            cutoff = torch.searchsorted(cum_probs, top_p)                              # Find the position where cumulate sum gte top_p
+            mask = torch.arange(probs.size(-1), device=device) <= cutoff               # mask = [1, 1, 1, 0, 0, 0, ...]
 
             truncated_probs = sorted_probs * mask
 
@@ -65,9 +65,9 @@ def decode(
 
             truncated_probs /= denominator
 
-            probs_top_p = torch.zeros_like(probs).scatter(0, sorted_indices, truncated_probs)
+            probs_top_p = torch.zeros_like(probs).scatter(0, sorted_indices, truncated_probs)  # Store sorted and sampled probs back to original positions
             
-            # Sample from top-p probability distribution
+            # Sample from top-p probability distribution, return the index in vocab_size
             next_token_id = torch.multinomial(probs_top_p, num_samples=1)
 
             # x.append(new_token)
