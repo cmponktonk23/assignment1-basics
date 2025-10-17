@@ -13,10 +13,10 @@ def load_data(
     if len(dataset) <= context_length:
         raise ValueError("dataset too short for given context_length")
     
-    starts = np.random.randint(0, len(dataset) - context_length, size=batch_size, dtype=np.int64)
-    offsets = np.arange(context_length + 1, dtype=np.int64)
-    idx = starts[:, None] + offsets[None, :]
-    seqs = np.asarray(dataset[idx], dtype=np.int64)
+    starts = np.random.randint(0, len(dataset) - context_length, size=batch_size, dtype=np.int64)  # (batch_size,)
+    offsets = np.arange(context_length + 1, dtype=np.int64)      # (context_length + 1,)
+    idx = starts[:, None] + offsets[None, :]                     # broadcast to [batch_size, context_length + 1]
+    seqs = np.asarray(dataset[idx], dtype=np.int64)              # [batch_size, context_length + 1]
     
     x = torch.from_numpy(seqs[:, :-1]).to(device, non_blocking=True)
     y = torch.from_numpy(seqs[:, 1:]).to(device, non_blocking=True)

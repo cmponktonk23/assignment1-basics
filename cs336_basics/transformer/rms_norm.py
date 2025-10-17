@@ -12,7 +12,7 @@ class RMSNorm(torch.nn.Module):
                  dtype: torch.dtype | None = None):
         
         super().__init__()
-
+        # torch.nn.Parameter must be initialized
         self.weight = torch.nn.Parameter(torch.ones(d_model, device=device, dtype=dtype))
         self.eps = eps
 
@@ -27,7 +27,7 @@ class RMSNorm(torch.nn.Module):
             FloatTensor of same shape as input.
         """
         in_dtype = x.dtype
-        x = x.to(torch.float32)
+        x = x.to(torch.float32)  # convert to float32 for avoid compute overflow
         rms = (x.square().mean(dim=-1, keepdim=True) + self.eps).rsqrt()
         x = x * rms * self.weight
-        return x.to(in_dtype)
+        return x.to(in_dtype)    # convert back to the target type

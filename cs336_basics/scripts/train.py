@@ -92,7 +92,6 @@ def train(
         rope_theta: float,
         num_steps: int,
         eval_steps: int,
-        lr: float,
         beta1: float,
         beta2: float,
         eps: float,
@@ -104,6 +103,9 @@ def train(
         cosine_cycle_iters: int):
 
     start_time = time.time()
+
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
@@ -117,13 +119,31 @@ def train(
     assert train_dtype == val_dtype, f"train_dtype {train_dtype} != val_dtype {val_dtype}"
 
     model = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, rope_theta).to(device)
-    optimizer = AdamW(model.parameters(), lr, (beta1, beta2), eps, weight_decay)
+    optimizer = AdamW(model.parameters(), max_learning_rate, (beta1, beta2), eps, weight_decay)
 
     ckpt_path = Path(ckpt_path)
     ckpt_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Resume training if checkpoint exists.
+    start_step = 0
+    resume_step = -1
+    if ckpt_path.exists():
+        resume_step = load_checkpoint(ckpt_path, model, optimizer)
+        start_step = resume_step + 1
+        if start_step >= num_steps:
+            print(f"Checkpoint already reached step {resume_step}. Nothing to do.")
+        else:
+            print(f"Resuming from checkpoint at step {start_step}")
+
     # model parameter number
     param_cnt = sum(p.numel() for p in model.parameters())
+
+    wandb_id_path = ckpt_path.with_suffix(ckpt_path.suffix + ".wandb_id")
+    wandb_resume_kwargs: dict[str, str] = {}
+    if start_step > 0 and wandb_id_path.exists():
+        wandb_run_id = wandb_id_path.read_text(encoding="utf-8").strip()
+        if wandb_run_id:
+            wandb_resume_kwargs = {"id": wandb_run_id, "resume": "allow"}
 
     run = wandb.init(
         project="cs336-assign1",
@@ -141,7 +161,6 @@ def train(
             "rope_theta": rope_theta,
             "num_steps": num_steps,
             "eval_steps": eval_steps,
-            "lr": lr,
             "beta1": beta1,
             "beta2": beta2,
             "eps": eps,
@@ -152,9 +171,19 @@ def train(
             "warmup_iters": warmup_iters,
             "cosine_cycle_iters": cosine_cycle_iters,
         },
+        **wandb_resume_kwargs,
     )
 
-    for step in range(num_steps):
+    # Persist run id so future resumes can attach to the same W&B run.
+    wandb_id_path.write_text(run.id, encoding="utf-8")
+
+    if start_step >= num_steps:
+        if resume_step >= 0:
+            validate_model(resume_step, model, eval_steps, val_dataset, batch_size, context_length, device, start_time, run)
+        run.finish()
+        return
+
+    for step in range(start_step, num_steps):
         # Sample dataset
         x, y = load_data(
             dataset=train_dataset,
@@ -208,16 +237,16 @@ def train(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=88)
+    parser.add_argument("--seed", type=int, default=66)
     parser.add_argument("--wandb_mode", type=str, default="offline")
     parser.add_argument("--train_dataset_path", type=Path, required=True)
     parser.add_argument("--train_meta_path", type=Path, required=True)
     parser.add_argument("--val_dataset_path", type=Path, required=True)
     parser.add_argument("--val_meta_path", type=Path, required=True)
     parser.add_argument("--ckpt_path", type=Path, required=True)
-    parser.add_argument("--ckpt_interval", type=int, default=500)
+    parser.add_argument("--ckpt_interval", type=int, default=5000)
     parser.add_argument("--log_interval", type=int, default=100)
-    parser.add_argument("--eval_interval", type=int, default=1000)
+    parser.add_argument("--eval_interval", type=int, default=2000)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--context_length", type=int, default=256)
     parser.add_argument("--vocab_size", type=int, default=10000)
@@ -228,7 +257,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rope_theta", type=float, default=10000)
     parser.add_argument("--num_steps", type=int, default=40000)
     parser.add_argument("--eval_steps", type=int, default=10)
-    parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--beta1", type=float, default=0.9)
     parser.add_argument("--beta2", type=float, default=0.95)
     parser.add_argument("--eps", type=float, default=1e-8)
@@ -236,8 +264,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_l2_norm", type=float, default=1.0)
     parser.add_argument("--max_learning_rate", type=float, default=2e-4)
     parser.add_argument("--min_learning_rate", type=float, default=1e-5)
-    parser.add_argument("--warmup_iters", type=int, default=2000)
-    parser.add_argument("--cosine_cycle_iters", type=int, default=2500)
+    parser.add_argument("--warmup_iters", type=int, default=4000)
+    parser.add_argument("--cosine_cycle_iters", type=int, default=40000)
     return parser.parse_args()
 
 

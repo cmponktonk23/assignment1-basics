@@ -16,7 +16,6 @@ class AdamW(torch.optim.Optimizer):
         super().__init__(params, defaults)
 
 
-
     def step(self, closure: Optional[Callable] = None):
         loss = None if closure is None else closure()
 
