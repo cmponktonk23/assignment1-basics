@@ -8,6 +8,14 @@ class Embedding(torch.nn.Module):
                  embedding_dim: int,                  # d_model
                  device: torch.device | None = None, 
                  dtype: torch.dtype | None = None):
+        """Token embedding.
+
+        Args:
+            num_embeddings: int
+                vocab size.
+            embedding_dim: int
+                d_model.
+        """
         
         super().__init__()
 

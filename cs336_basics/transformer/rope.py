@@ -19,6 +19,7 @@ class RoPE(torch.nn.Module):
         positions = torch.arange(max_seq_len)
         half_d = d_k >> 1
         inv_freq = torch.pow(theta, -((2 * torch.arange(1, half_d + 1) - 2) / d_k))
+        # angles = einsum(positions, inv_freq, "t, f -> t f")
         angles = positions[:, None] * inv_freq[None, :]
 
         # attach pre-calculate rotation angle to module

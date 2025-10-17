@@ -12,6 +12,14 @@ class Linear(torch.nn.Module):
                  out_features: int,
                  device: torch.device | None = None, 
                  dtype: torch.dtype | None = None):
+        """A linear layer initialized with truncated normal fan-in fan-out.
+        
+        Args:
+            in_features: int
+                The number of input features.
+            out_features: int
+                The number of output features.
+        """
         
         super().__init__()
 

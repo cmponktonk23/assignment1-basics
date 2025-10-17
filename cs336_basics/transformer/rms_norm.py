@@ -18,7 +18,16 @@ class RMSNorm(torch.nn.Module):
 
 
     def forward(self, x: Float[Tensor, " ... d_model"]) -> torch.Tensor:
+        """
+        Args:
+            x: FloatTensor of shape `(batch_size, *)`.
+                The input to apply root mean square layer normalization on.
+
+        Returns:
+            FloatTensor of same shape as input.
+        """
         in_dtype = x.dtype
         x = x.to(torch.float32)
-        x = x * self.weight / (x.square().mean(dim=-1, keepdim=True) + self.eps).sqrt()
+        rms = (x.square().mean(dim=-1, keepdim=True) + self.eps).rsqrt()
+        x = x * rms * self.weight
         return x.to(in_dtype)
